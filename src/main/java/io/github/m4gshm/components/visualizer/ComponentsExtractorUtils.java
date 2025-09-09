@@ -393,7 +393,7 @@ public class ComponentsExtractorUtils {
         return beanDefinitionNames;
     }
 
-    public static void handleError(String errMsg, String componentName, EvalException e, boolean failFast) {
+    public static void handleError(String errMsg, String componentName, RuntimeException e, boolean failFast) {
         if (failFast) {
             log.error("{} {}", errMsg, componentName, e);
             throw e;

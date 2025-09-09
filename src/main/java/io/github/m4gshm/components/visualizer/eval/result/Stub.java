@@ -2,19 +2,16 @@ package io.github.m4gshm.components.visualizer.eval.result;
 
 import io.github.m4gshm.components.visualizer.eval.bytecode.Eval;
 import io.github.m4gshm.components.visualizer.eval.bytecode.UnresolvedVariableException;
-import io.github.m4gshm.components.visualizer.model.Component;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-import org.apache.bcel.classfile.Method;
-import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.Type;
 
 import static lombok.AccessLevel.PRIVATE;
 
 @Getter
 @FieldDefaults(makeFinal = true, level = PRIVATE)
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 public class Stub extends Result implements ContextAware, TypeAware {
     Variable stubbed;
 

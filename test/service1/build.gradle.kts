@@ -15,8 +15,8 @@ configurations.annotationProcessor {
 dependencies {
     val springBootVer = "2.7.18"
 
-    compileOnly("org.projectlombok:lombok:1.18.36")
-    testCompileOnly("org.projectlombok:lombok:1.18.36")
+    compileOnly("org.projectlombok:lombok:1.18.38")
+    testCompileOnly("org.projectlombok:lombok:1.18.38")
 
     api(project(":"))
 
@@ -40,6 +40,7 @@ dependencies {
 
     testRuntimeOnly("org.apache.commons:commons-lang3:3.15.0")
     testImplementation("net.sourceforge.plantuml:plantuml-mit:1.2024.6")
+    testImplementation("io.github.m4gshm:spring-data-auto-mock:0.0.2")
 
 }
 

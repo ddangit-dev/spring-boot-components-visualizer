@@ -16,8 +16,8 @@ configurations.annotationProcessor {
 }
 
 dependencies {
-    compileOnly("org.projectlombok:lombok:1.18.36")
-    testCompileOnly("org.projectlombok:lombok:1.18.36")
+    compileOnly("org.projectlombok:lombok:1.18.38")
+    testCompileOnly("org.projectlombok:lombok:1.18.38")
 
     implementation("org.slf4j:slf4j-api:2.0.9")
 

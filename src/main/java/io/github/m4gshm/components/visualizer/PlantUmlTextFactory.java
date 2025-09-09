@@ -2,8 +2,8 @@ package io.github.m4gshm.components.visualizer;
 
 import com.google.common.base.Strings;
 import io.github.m4gshm.components.visualizer.model.*;
-import io.github.m4gshm.components.visualizer.model.Package;
 import io.github.m4gshm.components.visualizer.model.Interface.Type;
+import io.github.m4gshm.components.visualizer.model.Package;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
@@ -61,9 +61,6 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
     public static final String TABLE_TRANSPARENT = "<#transparent,transparent>";
     public static final Package NO_PACKAGE = Package.builder().build();
 
-    protected final String applicationName;
-    @Getter
-    protected final Options options;
     protected final Map<String, String> concatenatedComponents = new HashMap<>();
     protected final Map<String, String> concatenatedInterfaces = new HashMap<>();
     protected final Map<String, Set<String>> printedConcatenatedComponentRelations = new HashMap<>();
@@ -71,9 +68,19 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
     protected final Map<String, Object> uniques = new HashMap<>();
     protected final Set<Component> printedComponents = new LinkedHashSet<>();
 
+    protected final String applicationName;
+    @Getter
+    protected final Options options;
+    protected final String nl;
+
     public PlantUmlTextFactory(String applicationName, Options options) {
+        this(applicationName, options, System.lineSeparator());
+    }
+
+    public PlantUmlTextFactory(String applicationName, Options options, String lineSeparator) {
         this.applicationName = applicationName;
         this.options = options != null ? options : Options.DEFAULT;
+        this.nl = lineSeparator;
     }
 
     private static String getStorageEntityPackageName(Interface anInterface) {
@@ -125,15 +132,15 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
     public String create(Components components) {
         var out = new IndentStringAppender(new StringBuilder(), INDENT);
 
-        out.append("@startuml\n");
+        out.append("@startuml" + nl);
         var head = options.getHead();
         if (head != null) {
             out.append(head);
-            out.append("\n");
+            out.append(nl);
         }
 
         if (options.isRemoveUnlinked()) {
-            out.append("remove @unlinked\n");
+            out.append("remove @unlinked" + nl);
         }
 
         var optionsSort = options.getSort();
@@ -159,9 +166,9 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
         var bottom = options.getBottom();
         if (bottom != null) {
             out.append(bottom);
-            out.append("\n");
+            out.append(nl);
         }
-        out.append("@enduml\n");
+        out.append("@enduml" + nl);
         return out.toString();
     }
 
@@ -448,13 +455,13 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
                     out.append(" ").append(style);
                 }
             }
-            out.append(" {\n");
+            out.append(" {" + nl);
             out.addIndent();
         }
         internal.run();
         if (wrap) {
             out.removeIndent();
-            out.append("}\n");
+            out.append("}" + nl);
         }
     }
 
@@ -657,7 +664,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
     }
 
     protected String renderInterface(Interface anInterface, String interfaceId) {
-        return format(renderAs(anInterface.getType()) + " \"%s\" as %s\n", renderInterfaceName(anInterface), interfaceId);
+        return format(renderAs(anInterface.getType()) + " \"%s\" as %s" + nl, renderInterfaceName(anInterface), interfaceId);
     }
 
     protected void printInterfaceReferences(IndentStringAppender out, Interface anInterface, String interfaceId,
@@ -684,13 +691,13 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
 
     protected String renderStorage(StorageEntity storage, String interfaceId) {
         var storedTo = storage.getStoredTo();
-        var tables = storedTo.stream().reduce("", (l, r) -> (l.isBlank() ? "" : l + "\n") + r);
+        var tables = storedTo.stream().reduce("", (l, r) -> (l.isBlank() ? "" : l + "" + nl) + r);
         var noteId = getElementId(interfaceId, "table_name");
         var caption = storage.getEngine() == jpa ? "table" : "collection";
         if (storedTo.size() > 1) {
             caption += "s";
         }
-        return format("note \"%1$s: %2$s\" as %3$s\n%3$s .. %4$s\n", caption, tables, noteId, interfaceId);
+        return format("note \"%1$s: %2$s\" as %3$s" + nl + "%3$s .. %4$s" + nl, caption, tables, noteId, interfaceId);
     }
 
     protected void printInterfaceReference(IndentStringAppender out, Interface anInterface,
@@ -731,27 +738,27 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
 
     protected String renderOut(Type type, String interfaceId, boolean concatenatedInterface,
                                String componentId, boolean concatenatedComponent) {
-        return format((type == jms ? "%s ....> %s" : (concatenatedInterface ? "%s ....(0 %s" : "%s ....( %s")) + "\n", componentId, interfaceId);
+        return format((type == jms ? "%s ....> %s" : (concatenatedInterface ? "%s ....(0 %s" : "%s ....( %s")) + "" + nl, componentId, interfaceId);
     }
 
     protected String renderOutIn(Type type, String interfaceId, boolean concatenatedInterface,
                                  String componentId, boolean concatenatedComponent) {
-        return format("%1$s ....> %2$s\n%1$s <.... %2$s#line.dotted\n", componentId, interfaceId);
+        return format("%1$s ....> %2$s" + nl + "%1$s <.... %2$s#line.dotted" + nl, componentId, interfaceId);
     }
 
     protected String renderIn(Type type, String interfaceId, boolean concatenatedInterface,
                               String componentId, boolean concatenatedComponent) {
-        return format("%s %s)....> %s\n", interfaceId, concatenatedInterface ? "0" : "", componentId);
+        return format("%s %s)....> %s" + nl, interfaceId, concatenatedInterface ? "0" : "", componentId);
     }
 
     protected String renderInternal(Type type, String interfaceId, boolean concatenatedInterface,
                                     String componentId, boolean concatenatedComponent) {
-        return format("%s .. %s\n", interfaceId, componentId);
+        return format("%s .. %s" + nl, interfaceId, componentId);
     }
 
     protected String renderLink(Type type, String interfaceId, boolean concatenatedInterface,
                                 String componentId, boolean concatenatedComponent) {
-        return format("%s .... %s\n", interfaceId, componentId);
+        return format("%s .... %s" + nl, interfaceId, componentId);
     }
 
     protected Package populatePath(String parentPath, Package pack) {
@@ -764,7 +771,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
         var componentName = component.getName();
         var componentId = plantUmlAlias(componentName);
         checkUniqueId(componentId, component);
-        out.append(format("component %s as %s\n", componentName, componentId));
+        out.append(format("component %s as %s" + nl, componentName, componentId));
         printedComponents.add(component);
     }
 
@@ -786,7 +793,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
                 concatenatedComponents.put(component.getName(), concatenatedComponentsId);
             }
             printedComponents.addAll(components);
-            out.append(format("collections \"%s\" as %s\n", text, concatenatedComponentsId), false);
+            out.append(format("collections \"%s\" as %s" + nl, text, concatenatedComponentsId), false);
         }
     }
 
@@ -824,7 +831,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
             var tableRow = cells.length == 1 && " ".equals(cells[0]) ? null : renderTableRow(true, cells);
             if (tableRow != null) {
                 if (result.length() != 0) {
-                    result.append("\\n\\\n");
+                    result.append("\\n\\").append(nl);
                 }
                 result.append(tableRow);
             }
@@ -852,7 +859,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
                     : getElementId(parentId, "interfaces", String.valueOf(++part));
 
             checkUniqueId(concatenatedId, concatenatedId);
-            out.append(format("collections \"%s\" as %s\n", text, concatenatedId), false);
+            out.append(format("collections \"%s\" as %s" + nl, text, concatenatedId), false);
 
             for (var partInt : partInterfaces) {
                 var anInterface = partInt.getKey();
@@ -1032,7 +1039,7 @@ public class PlantUmlTextFactory implements SchemaFactory<String> {
     }
 
     private String renderComponentRelation(String componentName, String arrow, String dependencyName) {
-        return format("%s %s %s\n", plantUmlAlias(componentName), arrow, plantUmlAlias(dependencyName));
+        return format("%s %s %s" + nl, plantUmlAlias(componentName), arrow, plantUmlAlias(dependencyName));
     }
 
     @Getter

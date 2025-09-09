@@ -17,13 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bcel.classfile.Method;
 import org.hibernate.metamodel.spi.MetamodelImplementor;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.jpa.repository.support.JpaMetamodelEntityInformation;
 import org.springframework.data.mongodb.repository.query.MongoEntityInformation;
 import org.springframework.data.repository.Repository;
+import org.springframework.data.repository.core.support.AbstractEntityInformation;
 import org.springframework.data.repository.core.support.RepositoryFactoryInformation;
 import org.springframework.jms.core.JmsOperations;
 import org.springframework.web.client.RestOperations;
@@ -299,16 +299,21 @@ public class ComponentsExtractor {
         var beanFactory = this.beanFactory;
 
         var beanInfoMap = filter(stream(beanFactory.getBeanDefinitionNames()).map(name -> {
-            var bean = beanFactory.getBean(name);
-            var type = beanFactory.getType(name);
-            if (type == null) {
-                log.warn("undefined bean type: bean {}", name);
-            } else if (!type.isAssignableFrom(bean.getClass())) {
-                log.warn("wrong bean type: bean {}, expected {}, actual {}", name, type.getName(),
-                        bean.getClass().getName());
+            try {
+                var bean = beanFactory.getBean(name);
+                var type = beanFactory.getType(name);
+                if (type == null) {
+                    log.warn("undefined bean type: bean {}", name);
+                } else if (!type.isAssignableFrom(bean.getClass())) {
+                    log.warn("wrong bean type: bean {}, expected {}, actual {}", name, type.getName(),
+                            bean.getClass().getName());
+                }
+                return new BeanInfo(name, type, bean);
+            } catch (BeansException e) {
+                handleError("getBean {} error", name, e, options == null || options.isFailFast());
+                return null;
             }
-            return new BeanInfo(name, type, bean);
-        }), excludeNames, excludePackages, excludeTypes, filter).collect(toMap(BeanInfo::getName, e -> e,
+        }).filter(Objects::nonNull), excludeNames, excludePackages, excludeTypes, filter).collect(toMap(BeanInfo::getName, e -> e,
                 warnDuplicated(), LinkedHashMap::new));
 
         var rootPackageNames = (rootPackageClasses.length > 0
@@ -420,7 +425,7 @@ public class ComponentsExtractor {
                     .interfaces(interfaces)
                     .build();
             componentCache.put(componentName, Set.of(component));
-            return Stream.of(component);
+            return of(component);
         } else {
             var websocketHandlers = extractInWebsocketHandlers(componentName, componentType, rootPackage, beans, componentCache);
             if (!websocketHandlers.isEmpty()) {
@@ -436,7 +441,7 @@ public class ComponentsExtractor {
                         .dependencies(dependencies)
                         .build();
                 componentCache.put(componentName, Set.of(component));
-                return Stream.of(component);
+                return of(component);
             }
         }
     }
@@ -505,11 +510,10 @@ public class ComponentsExtractor {
             try {
                 if (factory instanceof RepositoryFactoryInformation) {
                     var repoInfo = (RepositoryFactoryInformation<?, ?>) factory;
-                    var persistentEntity = repoInfo.getPersistentEntity();
-                    var type = persistentEntity.getTypeInformation().getType();
-                    var entityClassName = type.getName();
 
                     var entityInformation = repoInfo.getEntityInformation();
+                    var type = entityInformation.getJavaType();
+                    var entityClassName = type.getName();
                     if (entityInformation instanceof JpaMetamodelEntityInformation) {
                         var metamodel = getFieldValue(entityInformation, "metamodel");
                         if (metamodel instanceof MetamodelImplementor) {
@@ -552,10 +556,20 @@ public class ComponentsExtractor {
                                         .engine(mongo)
                                         .build())
                                 .build());
+                    } else {
+                        var info = (AbstractEntityInformation<?, ?>) entityInformation;
+                        var javaType = info.getJavaType();
+                        repositoryEntities.add(Interface.builder()
+                                .name(javaType.getSimpleName())
+                                .type(storage)
+                                .direction(internal)
+                                .build());
                     }
                 }
             } catch (NoClassDefFoundError e) {
                 logUnsupportedClass(log, e);
+            } catch (RuntimeException e) {
+                handleError("getRepositoryEntityInterfaces", componentName, e, options.isFailFast());
             }
         }
         return repositoryEntities;
@@ -694,7 +708,7 @@ public class ComponentsExtractor {
                         .path(getComponentPath(webSocketHandlerClass, rootPackageNames));
 
                 var unmanagedDependencies = getUnmanagedDependencies(webSocketHandlerClass, webSocketHandler, new HashMap<>());
-                final var dependencies = !managed ? unmanagedDependencies : Stream.concat(
+                final var dependencies = !managed ? unmanagedDependencies : concat(
                         getDependencies(webSocketHandlerName, rootPackageNames, beans, cache).stream(),
                         unmanagedDependencies.stream()).collect(toLinkedHashSet());
                 var webSocketHandlerComponent = webSocketHandlerComponentBuilder
